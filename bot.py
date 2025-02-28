@@ -1,7 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 from telegram import Bot
-import snscrape.modules.twitter
+from snscrape.modules import twitter
 import time
 import os
 
