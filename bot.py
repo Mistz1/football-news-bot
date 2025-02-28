@@ -20,8 +20,7 @@ client = tweepy.Client(bearer_token=TWITTER_BEARER_TOKEN)
 async def get_fabrizio_romano_tweets():
     query = "from:FabrizioRomano"
     try:
-        tweets = client.search_recent_tweets(query=query, tweet_fields=["id", "text"], max_results=5)
-
+        tweets = client.search_recent_tweets(query=query, tweet_fields=["id", "text"], max_results=10)
         if tweets.data:
             fabrizio_news = [
                 f"⚡ Fabrizio Romano: {tweet.text}\n🔗 https://twitter.com/FabrizioRomano/status/{tweet.id}\n"
