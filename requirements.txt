@@ -1,4 +1,6 @@
 python-telegram-bot
 requests
 beautifulsoup4
-snscrape>=0.7.0
+tweepy
+python-dotenv
+requests
