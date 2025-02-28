@@ -10,6 +10,9 @@ CHANNEL_ID = os.getenv("CHANNEL_ID")
 
 bot = Bot(token=BOT_TOKEN)
 
+# Dictionary to store last sent headlines
+last_sent_news = set()
+
 # Function to get news headlines
 def get_latest_news():
     urls = {
@@ -40,18 +43,27 @@ def get_latest_news():
                 link = article["href"]
                 if not link.startswith("http"):
                     link = url + link
-                headlines.append(f"📰 {site}: {title}\n🔗 {link}\n")
+                headlines.append((title, f"📰 {site}: {title}\n🔗 {link}\n"))
 
         except Exception as e:
             print(f"Error fetching {site}: {e}")
 
-    return "\n".join(headlines[:10])
+    return headlines
 
 # Function to send news updates to Telegram
 async def send_news():
-    news = get_latest_news()
-    if news:
-        await bot.send_message(chat_id=CHANNEL_ID, text=news, disable_web_page_preview=True)
+    global last_sent_news
+    news_list = get_latest_news()
+    
+    # Filter out previously sent news
+    new_news = [news for title, news in news_list if title not in last_sent_news]
+    
+    if new_news:
+        message = "\n".join(new_news[:10])  # Limit to 10 news articles per message
+        await bot.send_message(chat_id=CHANNEL_ID, text=message, disable_web_page_preview=True)
+
+        # Update sent news tracker
+        last_sent_news = set(title for title, _ in news_list)  # Store only titles
 
 # Main loop to send news every 5 minutes
 async def main():
