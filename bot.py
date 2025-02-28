@@ -19,8 +19,11 @@ client = tweepy.Client(bearer_token=TWITTER_BEARER_TOKEN)
 # Function to fetch latest tweets from Fabrizio Romano
 async def get_fabrizio_romano_tweets():
     query = "from:FabrizioRomano"
+    
     try:
-        tweets = client.search_recent_tweets(query=query, tweet_fields=["id", "text"], max_results=10)
+        # Ensure the function is awaited
+        tweets = await client.search_recent_tweets(query=query, tweet_fields=["id", "text"], max_results=10)
+        
         if tweets.data:
             fabrizio_news = [
                 f"⚡ Fabrizio Romano: {tweet.text}\n🔗 https://twitter.com/FabrizioRomano/status/{tweet.id}\n"
@@ -29,10 +32,14 @@ async def get_fabrizio_romano_tweets():
             return "\n".join(fabrizio_news)
         return "No new tweets from Fabrizio Romano."
     
-    except tweepy.errors.TooManyRequests:
-        print("Rate limit exceeded. Waiting 15 minutes...")
+    except tweepy.TooManyRequests:
+        print("Rate limit exceeded. Waiting 15 minutes before retrying...")
         await asyncio.sleep(900)  # Wait 15 minutes before retrying
         return await get_fabrizio_romano_tweets()
+    
+    except tweepy.BadRequest as e:
+        print(f"Bad Request Error: {e}")
+        return ""
 
 # Function to get news headlines
 def get_latest_news():
@@ -74,6 +81,7 @@ async def send_news():
 
     message = f"{news}\n\n{fabrizio_updates}" if fabrizio_updates else news
     if message:
+        # Ensure the bot.send_message() is awaited
         await bot.send_message(chat_id=CHANNEL_ID, text=message, disable_web_page_preview=True)
 
 # Main loop to send news every 5 minutes
