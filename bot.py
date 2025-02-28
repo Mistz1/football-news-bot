@@ -1,44 +1,47 @@
 import tweepy
+import os
 import requests
 import time
-from telegram import Bot
+from dotenv import load_dotenv
 
-# Twitter API Credentials (Replace with your keys)
-API_KEY = "your_api_key"
-API_SECRET = "your_api_secret"
-ACCESS_TOKEN = "your_access_token"
-ACCESS_SECRET = "your_access_secret"
+# Load environment variables
+load_dotenv()
 
-# Telegram Bot Token & Channel ID
-TELEGRAM_BOT_TOKEN = "your_telegram_bot_token"
-TELEGRAM_CHANNEL_ID = "@your_channel"
+# Twitter API credentials
+API_KEY = os.getenv("TWITTER_API_KEY")
+API_SECRET = os.getenv("TWITTER_API_SECRET")
+ACCESS_TOKEN = os.getenv("TWITTER_ACCESS_TOKEN")
+ACCESS_SECRET = os.getenv("TWITTER_ACCESS_SECRET")
+BEARER_TOKEN = os.getenv("TWITTER_BEARER_TOKEN")
 
-# Initialize Twitter API
-auth = tweepy.OAuthHandler(API_KEY, API_SECRET)
-auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
-api = tweepy.API(auth, wait_on_rate_limit=True)
+# Telegram bot credentials
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-# Initialize Telegram Bot
-bot = Bot(token=TELEGRAM_BOT_TOKEN)
+# Tweepy client
+client = tweepy.Client(bearer_token=BEARER_TOKEN)
 
-def get_fabrizio_romano_tweets():
-    """Fetch latest Fabrizio Romano tweets"""
-    tweets = api.user_timeline(screen_name="FabrizioRomano", count=5, tweet_mode="extended")
-    return [tweet.full_text for tweet in tweets]
+def get_latest_tweets(username, count=5):
+    """Fetch latest tweets from a specific user"""
+    user = client.get_user(username=username, user_auth=True)
+    tweets = client.get_users_tweets(user.data.id, max_results=count, tweet_fields=["created_at"])
+    
+    if tweets.data:
+        return [tweet.text for tweet in tweets.data]
+    return []
 
-def send_news():
-    """Fetch latest tweets & send them to Telegram"""
-    try:
-        tweets = get_fabrizio_romano_tweets()
-        for tweet in tweets:
-            bot.send_message(chat_id=TELEGRAM_CHANNEL_ID, text=tweet)
-            time.sleep(2)  # Delay to avoid spam
+def send_telegram_message(message):
+    """Send a message to the Telegram channel"""
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
+    requests.post(url, json=payload)
 
-    except Exception as e:
-        print(f"Error: {e}")
-
-# Run every 5 minutes
-if __name__ == "__main__":
+def main():
     while True:
-        send_news()
-        time.sleep(300)  # Wait 5 minutes (300 sec)
+        tweets = get_latest_tweets("FabrizioRomano", count=3)  # Fetch latest tweets
+        for tweet in tweets:
+            send_telegram_message(tweet)  # Send each tweet to Telegram
+        time.sleep(300)  # Wait 5 minutes before fetching again
+
+if __name__ == "__main__":
+    main()
