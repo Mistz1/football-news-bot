@@ -1,20 +1,19 @@
 import requests
-import json
-import time
-import os
 from bs4 import BeautifulSoup
 from telegram import Bot
+import tweepy
+import asyncio
+import os
 
-# Telegram Bot Token & Channel ID from Railway environment variables
+# Load environment variables
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHANNEL_ID = os.getenv("CHANNEL_ID")
-
-# Twitter API credentials
-CLIENT_ID = os.getenv("TWITTER_CLIENT_ID")
-CLIENT_SECRET = os.getenv("TWITTER_CLIENT_SECRET")
-BEARER_TOKEN = os.getenv("TWITTER_BEARER_TOKEN")
+TWITTER_BEARER_TOKEN = os.getenv("TWITTER_BEARER_TOKEN")
 
 bot = Bot(token=BOT_TOKEN)
+
+# Twitter authentication
+client = tweepy.Client(bearer_token=TWITTER_BEARER_TOKEN)
 
 # Function to scrape news
 def get_latest_news():
@@ -42,36 +41,31 @@ def get_latest_news():
             link = article["href"]
             if not link.startswith("http"):
                 link = url + link
-            headlines.append(f"📰 {site}: {title}\n🔗 {link}\n")
+            headlines.append(f"\U0001F4F0 {site}: {title}\n\U0001F517 {link}\n")
     return "\n".join(headlines[:10])
 
-# Function to fetch latest tweets from Fabrizio Romano using OAuth 2.0
+# Function to get Fabrizio Romano's latest tweets
 def get_fabrizio_romano_tweets():
-    headers = {"Authorization": f"Bearer {BEARER_TOKEN}"}
-    url = "https://api.twitter.com/2/users/by/username/FabrizioRomano"
-    response = requests.get(url, headers=headers)
-    if response.status_code != 200:
-        return "⚠️ Failed to fetch Twitter user info"
-    user_id = response.json().get("data", {}).get("id")
-    if not user_id:
-        return "⚠️ Failed to get user ID"
-    tweets_url = f"https://api.twitter.com/2/users/{user_id}/tweets?max_results=5"
-    tweets_response = requests.get(tweets_url, headers=headers)
-    if tweets_response.status_code != 200:
-        return "⚠️ Failed to fetch tweets"
-    tweets = tweets_response.json().get("data", [])
-    fabrizio_news = [f"⚡ Fabrizio Romano: {tweet['text']}\n🔗 https://twitter.com/FabrizioRomano/status/{tweet['id']}\n" for tweet in tweets]
+    tweets = client.search_recent_tweets(query="from:FabrizioRomano", tweet_fields=["id", "text"], max_results=5)
+    fabrizio_news = []
+    if tweets.data:
+        for tweet in tweets.data:
+            fabrizio_news.append(f"⚡ Fabrizio Romano: {tweet.text}\n🔗 https://twitter.com/FabrizioRomano/status/{tweet.id}\n")
     return "\n".join(fabrizio_news)
 
 # Function to send news to Telegram channel
-def send_news():
+async def send_news():
     news = get_latest_news()
     fabrizio_updates = get_fabrizio_romano_tweets()
     message = f"{news}\n\n{fabrizio_updates}" if fabrizio_updates else news
     if message:
-        bot.send_message(chat_id=CHANNEL_ID, text=message, disable_web_page_preview=True)
+        await bot.send_message(chat_id=CHANNEL_ID, text=message, disable_web_page_preview=True)
 
 # Run every 5 minutes
-while True:
-    send_news()
-    time.sleep(300)  # 300 seconds = 5 minutes
+async def main():
+    while True:
+        await send_news()
+        await asyncio.sleep(300)  # 300 seconds = 5 minutes
+
+if __name__ == "__main__":
+    asyncio.run(main())
